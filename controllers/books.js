@@ -7,54 +7,7 @@ const asyncHandler = require("../middleware/async");
 // @routes	GET /api/v1/books
 // @access	PUBLIC
 exports.getBooks = asyncHandler(async (req, res, next) => {
-  let query;
-  const reqQuery = { ...req.query };
-  const removeFields = ["select", "sort", "limit", "page"];
-  removeFields.forEach((param) => delete reqQuery[param]);
-
-  let queryStr = JSON.stringify(reqQuery);
-  queryStr = queryStr.replace(
-    /\b(gt|gte|lt|lte|in)\b/g,
-    (match) => `$${match}`
-  );
-
-  query = Book.find(JSON.parse(queryStr));
-
-  if (req.query.select) {
-    const fields = req.query.select.split(",").join(" ");
-    query = query.select(fields);
-  }
-
-  if (req.query.sort) {
-    const sortBy = req.query.sort.split(",").join(" ");
-    query = query.sort(sortBy);
-  } else {
-    query = query.sort("-createdAt");
-  }
-
-  //Pagination
-  const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 0;
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  const total = await Book.countDocuments();
-
-  query = query.skip(startIndex).limit(limit);
-
-  const pagination = {};
-
-  if (endIndex < total) {
-    pagination.next = { page: page + 1, limit };
-  }
-
-  if (startIndex > 0) {
-    pagination.prev = { page: page - 1, limit };
-  }
-
-  const books = await query;
-  res
-    .status(200)
-    .json({ success: true, count: books.length, pagination, data: books });
+  res.status(200).json(res.filteredResults);
 });
 
 // @desc		Get single book
@@ -75,6 +28,7 @@ exports.getBook = asyncHandler(async (req, res, next) => {
 // @routes	POST /api/v1/books
 // @access	PRIVATE
 exports.addBook = asyncHandler(async (req, res, next) => {
+  req.body.user = req.user.id;
   const book = await Book.create(req.body);
   res.status(201).json({ success: true, data: book });
 });
@@ -83,13 +37,25 @@ exports.addBook = asyncHandler(async (req, res, next) => {
 // @routes	DELETE /api/v1/books/:id
 // @access	PRIVATE
 exports.deleteBook = asyncHandler(async (req, res, next) => {
-  const book = await Book.findByIdAndDelete(req.params.id);
+  const book = await Book.findById(req.params.id);
 
   if (!book) {
     return next(
       new ErrorResponse(`Book with id ${req.params.id} not found`, 404)
     );
   }
+
+  if (book.user.toString() !== req.user.id && req.user.role !== "admin") {
+    return next(
+      new ErrorResponse(
+        `User ${req.user.id} is not authorized to delete this course`,
+        401
+      )
+    );
+  }
+
+  book.remove();
+
   res.status(200).json({
     success: true,
     msg: `Book with id ${req.params.id} deleted successfully`,
@@ -105,6 +71,15 @@ exports.bookUploadPhoto = asyncHandler(async (req, res, next) => {
   if (!book) {
     return next(
       new ErrorResponse(`Book with id ${req.params.id} not found`, 404)
+    );
+  }
+
+  if (book.user.toString() !== req.user.id && req.user.role !== "admin") {
+    return next(
+      new ErrorResponse(
+        `User ${req.user.id} is not authorized to upload a picture to this course`,
+        401
+      )
     );
   }
 

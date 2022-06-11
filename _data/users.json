@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Admin Account",
+    "email": "admin@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Web Publisher Account",
+    "email": "web@mailinator.com",
+    "role": "publisher",
+    "password": "123456"
+  },
+  {
+    "name": "iOS Publisher Account",
+    "email": "ios@mailinator.com",
+    "role": "publisher",
+    "password": "123456"
+  },
+  {
+    "name": "Android Publisher Account",
+    "email": "android@mailinator.com",
+    "role": "publisher",
+    "password": "123456"
+  },
+  {
+    "name": "Game Publisher Account",
+    "email": "game@mailinator.com",
+    "role": "publisher",
+    "password": "123456"
+  },
+  {
+    "name": "UI/UX Publisher Account",
+    "email": "uiux@mailinator.com",
+    "role": "publisher",
+    "password": "123456"
+  },
+  {
+    "name": "Billy Jean",
+    "email": "billy@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Harry Mack",
+    "email": "harry@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Derek Stocking",
+    "email": "derek@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Jenna Hanson",
+    "email": "jenna@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Jerry Sprinkles",
+    "email": "jerry@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Jude Johnson",
+    "email": "jude@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Mike Crunch",
+    "email": "mike@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Orion Bravo",
+    "email": "orion@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  },
+  {
+    "name": "Sarah Smith",
+    "email": "sarah@mailinator.com",
+    "role": "user",
+    "password": "123456"
+  }
+]
