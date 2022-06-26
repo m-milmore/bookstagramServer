@@ -8,14 +8,15 @@ const crypto = require("crypto");
 // @routes	POST /api/v1/auth/register
 // @access	PUBLIC
 exports.register = asyncHandler(async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
 
-  const user = await User.create({
+  let user = await User.create({
     name,
     email,
     password,
-    role,
   });
+
+  user = await User.findById(user.id).select("-password");
 
   sendTokenResponse(user, 200, res);
 });
@@ -30,7 +31,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Please provide an email and password"));
   }
 
-  const user = await User.findOne({ email }).select("+password");
+  let user = await User.findOne({ email }).select("+password");
 
   if (!user) {
     return next(new ErrorResponse("Invalid credentials", 401));
@@ -40,6 +41,8 @@ exports.login = asyncHandler(async (req, res, next) => {
   if (!isMatch) {
     return next(new ErrorResponse("Invalid credentials", 401));
   }
+
+  user = await User.findOne({ email });
 
   sendTokenResponse(user, 200, res);
 });
@@ -55,11 +58,27 @@ exports.logout = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: {} });
 });
 
-// @desc		Get logged in user
+// @desc		Get logged in user by id
 // @routes	GET /api/v1/auth/me
 // @access	PRIVATE
 exports.getLoggedInUser = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.user.id);
+  res.status(200).json({ success: true, data: user });
+});
+
+// @desc		Get logged in user by email
+// @routes	GET /api/v1/auth/whoami
+// @access	PRIVATE
+exports.getLoggedInUserByEmail = asyncHandler(async (req, res, next) => {
+  const user = await User.findOne({ email: req.user.email });
+  res.status(200).json({ success: true, data: user });
+});
+
+// @desc		Get logged in user by email as param
+// @routes	GET /api/v1/auth/email
+// @access	PRIVATE
+exports.getLoggedInUserByParamEmail = asyncHandler(async (req, res, next) => {
+  const user = await User.findOne({ email: req.params.email });
   res.status(200).json({ success: true, data: user });
 });
 
@@ -83,7 +102,7 @@ exports.updateDetails = asyncHandler(async (req, res, next) => {
 // @routes	POST /api/v1/auth/updatepassword
 // @access	PRIVATE
 exports.updatePassword = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id).select("+password");
+  let user = await User.findById(req.user.id).select("+password");
 
   if (!(await user.matchPassword(req.body.currentPassword))) {
     return next(new ErrorResponse("Incorrect password", 401));
@@ -91,6 +110,8 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
 
   user.password = req.body.newPassword;
   await user.save();
+
+  user = await User.findById(user.id).select("-password");
 
   sendTokenResponse(user, 200, res);
 });
@@ -108,11 +129,13 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const resetToken = user.getResetPasswordToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetUrl = `${req.protocol}://${req.get(
-    "host"
-  )}/api/v1/auth/resetpassword/${resetToken}`;
+  // const resetUrl = `${req.protocol}://${req.get(
+  //   "host"
+  // )}/api/v1/auth/resetpassword/${resetToken}`;
 
-  const message = `You are receiving this email because you (or someone else) has requested a password reset. Please make a [PUT] request to: ${resetUrl}`;
+  const resetUrl = `${req.body.urlLink}${resetToken}`;
+
+  const message = `You are receiving this email because you requested a password reset. Please click on this link to reset your password: ${resetUrl}`;
 
   const options = {
     email: user.email,
@@ -143,7 +166,7 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     .update(req.params.resettoken)
     .digest("hex");
 
-  const user = await User.findOne({
+  let user = await User.findOne({
     resetPasswordToken,
     resetPasswordExpired: { $gt: Date.now() },
   });
@@ -156,6 +179,8 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordToken = undefined;
   user.resetPasswordExpired = undefined;
   await user.save();
+
+  user = await User.findById(user.id).select("-password");
 
   sendTokenResponse(user, 200, res);
 });
@@ -177,5 +202,5 @@ const sendTokenResponse = (user, statusCode, res) => {
   res
     .status(statusCode)
     .cookie("token", token, options)
-    .json({ success: true, token });
+    .json({ success: true, token, data: user });
 };

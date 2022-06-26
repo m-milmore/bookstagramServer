@@ -9,7 +9,7 @@ const helmet = require("helmet");  // security to headers
 const xss = require("xss-clean"); // prevents script tags in req.body
 const hpp = require("hpp"); // params pollution
 const cors = require("cors"); // if client on one url and server on another
-const rateLimit = require("express-rate-limit"); // limits the number of request per a cartain time
+const rateLimit = require("express-rate-limit"); // limits the number of request per a certain time
 
 const path = require("path");
 const cookieParser = require("cookie-parser");
