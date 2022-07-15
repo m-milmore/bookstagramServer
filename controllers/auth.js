@@ -3,6 +3,7 @@ const ErrorResponse = require("../utils/errorResponse");
 const asyncHandler = require("../middleware/async");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 // @desc		Register user
 // @routes	POST /api/v1/auth/register
@@ -10,19 +11,20 @@ const crypto = require("crypto");
 exports.register = asyncHandler(async (req, res, next) => {
   const { name, email, password } = req.body;
 
+  // validated in the User Schema, email & password are required
   let user = await User.create({
     name,
     email,
     password,
   });
 
-  user = await User.findById(user.id).select("-password");
+  user = await User.findById(user.id);
 
-  sendTokenResponse(user, 200, res);
+  sendTokenResponse(user, 201, res);
 });
 
 // @desc		Login user
-// @routes	POST /api/v1/auth/login
+// @routes	POST /api/v1/auth/login, data send via req.body and not via url attached
 // @access	PUBLIC
 exports.login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
@@ -50,12 +52,39 @@ exports.login = asyncHandler(async (req, res, next) => {
 // @desc		Logout user
 // @routes	GET /api/v1/auth/logout
 // @access	PUBLIC
+// maybe put the rest of the values at null for that user with the refreshToken
 exports.logout = asyncHandler(async (req, res, next) => {
-  res.cookie("token", "none", {
-    expires: new Date(Date.now() + 1 * 1000),
+  const cookies = req.cookies;
+
+  if (!cookies || !cookies.refresh) {
+    return res.sendStatus(204); // No Content
+  }
+
+  const refreshToken = cookies.refresh;
+
+  let user = await User.findOne({ refreshToken });
+
+  if (user) {
+    user.refreshToken = undefined;
+    await user.save({ validateBeforeSave: false });
+  }
+
+  const options = {
     httpOnly: true,
-  });
-  res.status(200).json({ success: true, data: {} });
+    // sameSite: "None",
+    // secure: true,
+  };
+
+  // requires to use only https servers
+  if (process.env.NODE_ENV === "production") {
+    options.secure = true;
+    options.sameSite = "None";
+  }
+
+  res
+    .status(200)
+    .cookie("refresh", "none", options)
+    .json({ success: true, data: {} });
 });
 
 // @desc		Get logged in user by id
@@ -111,7 +140,7 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
   user.password = req.body.newPassword;
   await user.save();
 
-  user = await User.findById(user.id).select("-password");
+  user = await User.findById(user.id);
 
   sendTokenResponse(user, 200, res);
 });
@@ -147,14 +176,11 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     await sendEmail(options);
     res.status(200).json({ success: true, data: "Email sent" });
   } catch (err) {
-    console.log(err);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpired = undefined;
     await user.save({ validateBeforeSave: false });
     return next(new ErrorResponse("Email could not be sent", 500));
   }
-
-  // res.status(200).json({ success: true, data: user });
 });
 
 // @desc		reset password
@@ -180,27 +206,63 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordExpired = undefined;
   await user.save();
 
-  user = await User.findById(user.id).select("-password");
+  user = await User.findById(user.id);
 
   sendTokenResponse(user, 200, res);
 });
 
-const sendTokenResponse = (user, statusCode, res) => {
+// @desc		verify refresh token and if ok send access token
+// @routes	GET /api/v1/auth/refresh
+// @access	PRIVATE
+exports.verifyRefreshToken = asyncHandler(async (req, res, next) => {
+  console.log("in verify refresh");
+  const cookies = req.cookies;
+
+  if (!cookies || !cookies.refresh) {
+    return next(new ErrorResponse("Unauthorized (cookie not found)", 401));
+  }
+  const refreshToken = cookies.refresh;
+  console.log("RT: ", refreshToken);
+
+  let user = await User.findOne({ refreshToken });
+
+  if (!user) {
+    return next(new ErrorResponse("Forbidden", 403));
+  }
+  console.log("user", user);
+
+  const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+  user = await User.findById(decoded.id);
+    console.log("user", user);
+
+  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
+  console.log("New AT: ", token)
+
+  res.status(200).json({ success: true, token, data: user });
+});
+
+const sendTokenResponse = async (user, statusCode, res) => {
   const token = user.getSignedJwt();
+  await user.save({ validateBeforeSave: false });
+  userLight = await User.findById(user.id); // to exclude the refreshToken in the json but not in the cookie
 
   const options = {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-    ),
+    expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 60 * 60 * 1000),
     httpOnly: true,
+    // sameSite: "None",
+    // secure: true,
+    maxAge: 60 * 60 * 1000,
   };
 
   if (process.env.NODE_ENV === "production") {
     options.secure = true;
+    options.sameSite = "None";
   }
 
   res
     .status(statusCode)
-    .cookie("token", token, options)
-    .json({ success: true, token, data: user });
+    .cookie("refresh", user.refreshToken, options)
+    .json({ success: true, token, data: userLight });
 };

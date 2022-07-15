@@ -30,6 +30,10 @@ const UserSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpired: Date,
+  refreshToken: {
+    type: String,
+    select: false,
+  },
   createAt: {
     type: Date,
     default: Date.now(),
@@ -44,8 +48,11 @@ UserSchema.pre("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Sign JWT and return
+// Save refresh token and return access token
 UserSchema.methods.getSignedJwt = function (next) {
+  this.refreshToken = jwt.sign({ id: this._id }, process.env.REFRESH_SECRET, {
+    expiresIn: process.env.REFRESH_EXPIRE,
+  });
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE,
   });

@@ -13,6 +13,7 @@ const {
   updateDetails,
   updatePassword,
   logout,
+  verifyRefreshToken,
 } = require("../controllers/auth");
 
 const { protect } = require("../middleware/auth");
@@ -22,6 +23,7 @@ router.post("/login", login);
 router.get("/logout", logout);
 router.post("/forgotpassword", forgotPassword);
 router.put("/resetpassword/:resettoken", resetPassword);
+router.get("/refresh", verifyRefreshToken);
 router.put("/updatedetails", protect, updateDetails);
 router.post("/updatepassword", protect, updatePassword);
 router.get("/me", protect, getLoggedInUser);

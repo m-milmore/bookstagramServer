@@ -12,6 +12,8 @@
 /build
 
 # misc
+node_modules
+
 .DS_Store
 .env.local
 .env.development.local
@@ -24,3 +26,4 @@ yarn-debug.log*
 yarn-error.log*
 
 config/config.env
+ logs/*

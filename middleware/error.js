@@ -1,6 +1,9 @@
 const ErrorResponse = require("../utils/errorResponse");
 
+const { logEvents } = require("./logEvents");
+
 const errorHandler = (err, req, res, next) => {
+  logEvents(`${err.name}: ${err.message}`, "errLog.txt");
   let error = { ...err };
   error.message = err.message;
 
