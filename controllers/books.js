@@ -125,7 +125,6 @@ exports.verifyMimeType = asyncHandler(async (req, res, next) => {
 
   const file = req.files.image;
   const fileSignature = file.data.toString("hex", 0, 4);
-  console.log(fileSignature);
 
   // for png, gif, and jpg (last 6) formats
   const signatureArray = [
